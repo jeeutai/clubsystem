@@ -1,0 +1,215 @@
+def show_home_tab(user):
+    st.markdown("### 📢 공지사항")
+    
+    # Quick stats
+    col1, col2, col3, col4 = st.columns(4)
+    
+    clubs_df = st.session_state.data_manager.load_csv('clubs')
+    assignments_df = st.session_state.data_manager.load_csv('assignments')
+    user_clubs_df = st.session_state.data_manager.load_csv('user_clubs')
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h2 style="color: #FF6B6B; margin: 0;">{len(clubs_df)}</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">전체 동아리</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        my_clubs = user_clubs_df[user_clubs_df['username'] == user['username']]
+        st.markdown(f"""
+        <div class="metric-card">
+            <h2 style="color: #4ECDC4; margin: 0;">{len(my_clubs)}</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">내 동아리</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        pending_assignments = len(assignments_df[assignments_df['status'] == 'active']) if not assignments_df.empty else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <h2 style="color: #FFA726; margin: 0;">{pending_assignments}</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">진행중 과제</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        points_df = st.session_state.data_manager.load_csv('points')
+        my_points = points_df[points_df['username'] == user['username']]['points'].sum() if not points_df.empty else 0
+        st.markdown(f"""
+        <div class="metric-card">
+            <h2 style="color: #AB47BC; margin: 0;">{my_points}</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">내 포인트</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # My clubs
+    st.markdown("### 🎪 내 동아리")
+    my_clubs_data = st.session_state.data_manager.get_user_clubs(user['username'])
+    
+    if my_clubs_data.empty:
+        st.info("아직 가입한 동아리가 없습니다.")
+    else:
+        for _, club in my_clubs_data.iterrows():
+            with st.container():
+                st.markdown(f"""
+                <div class="club-card">
+                    <h4>{club['icon']} {club['name']}</h4>
+                    <p>{club['description']}</p>
+                    <p><strong>회장:</strong> {club['president']}</p>
+                    <p><a href="https://meet.google.com/dbx-ozrs-bma">회의 링크(전체 전용)</a></p>
+                </div>
+                """, unsafe_allow_html=True)
+
+def show_board_tab(user):
+    st.markdown("### 📋 게시판")
+    
+    # Post creation
+    if st.button("📝 새 글 작성"):
+        st.session_state.show_post_form = True
+    
+    if st.session_state.get('show_post_form', False):
+        with st.form("new_post"):
+            title = st.text_input("제목")
+            content = st.text_area("내용")
+            club_options = ["전체"] + st.session_state.data_manager.get_user_clubs(user['username'])['club_name'].tolist()
+            selected_club = st.selectbox("동아리 선택", club_options)
+            
+            if st.form_submit_button("게시"):
+                if title and content:
+                    st.session_state.data_manager.add_post(
+                        user['username'], title, content, selected_club
+                    )
+                    st.success("글이 게시되었습니다!")
+                    st.session_state.show_post_form = False
+                    st.rerun()
+    
+    # Display posts
+    posts_df = st.session_state.data_manager.load_csv('posts')
+    if not posts_df.empty:
+        posts_df = posts_df.sort_values('timestamp', ascending=False)
+        
+        for _, post in posts_df.iterrows():
+            with st.container():
+                st.markdown(f"""
+                <div class="club-card">
+                    <h4>{post['title']}</h4>
+                    <p>{post['content'][:200]}{'...' if len(post['content']) > 200 else ''}</p>
+                    <small>👤 {post['author']} | 📅 {post['timestamp']} | 🏷️ {post['club']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+
+def show_chat_tab(user):
+    st.session_state.chat_system.show_chat_interface(user)
+
+def show_schedule_tab(user):
+    st.markdown("### 📅 일정표")
+    
+    # Add schedule (for authorized users)
+    if user['role'] in ['선생님', '회장', '부회장']:
+        with st.expander("➕ 새 일정 추가"):
+            with st.form("add_schedule"):
+                title = st.text_input("일정 제목")
+                description = st.text_area("설명")
+                schedule_date = st.date_input("날짜")
+                club_options = ["전체"] + st.session_state.data_manager.load_csv('clubs')['name'].tolist()
+                selected_club = st.selectbox("대상 동아리", club_options)
+                
+                if st.form_submit_button("일정 추가"):
+                    if title and schedule_date:
+                        st.session_state.data_manager.add_schedule(
+                            title, description, schedule_date, selected_club, user['username']
+                        )
+                        st.success("일정이 추가되었습니다!")
+                        st.rerun()
+    
+    # Display schedule
+    schedule_df = st.session_state.data_manager.load_csv('schedule')
+    if not schedule_df.empty:
+        schedule_df['date'] = pd.to_datetime(schedule_df['date'])
+        schedule_df = schedule_df.sort_values('date')
+        
+        for _, event in schedule_df.iterrows():
+            with st.container():
+                st.markdown(f"""
+                <div class="club-card">
+                    <h4>📅 {event['title']}</h4>
+                    <p>{event['description']}</p>
+                    <p><strong>날짜:</strong> {event['date'].strftime('%Y-%m-%d')}</p>
+                    <p><strong>동아리:</strong> {event['club']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+def show_assignment_tab(user):
+    st.session_state.assignment_system.show_assignment_interface(user)
+
+def show_report_tab(user):
+    if user['role'] in ['선생님', '회장']:
+        st.session_state.report_generator.show_report_interface(user)
+    else:
+        st.warning("보고서 작성 권한이 없습니다.")
+
+def show_admin_tab(user):
+    if user['role'] != '선생님':
+        st.warning("관리자 권한이 필요합니다.")
+        return
+    
+    st.markdown("### 📊 관리자 대시보드")
+    
+    # Statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    accounts_df = st.session_state.data_manager.load_csv('accounts')
+    clubs_df = st.session_state.data_manager.load_csv('clubs')
+    posts_df = st.session_state.data_manager.load_csv('posts')
+    assignments_df = st.session_state.data_manager.load_csv('assignments')
+    
+    with col1:
+        st.metric("전체 사용자", len(accounts_df))
+    with col2:
+        st.metric("전체 동아리", len(clubs_df))
+    with col3:
+        st.metric("전체 게시글", len(posts_df))
+    with col4:
+        st.metric("전체 과제", len(assignments_df))
+    
+    # Management sections
+    tab1, tab2, tab3, tab4 = st.tabs(["👥 계정 관리", "🎪 동아리 관리", "📊 통계", "💾 데이터"])
+    
+    with tab1:
+        show_account_management()
+    
+    with tab2:
+        show_club_management()
+    
+    with tab3:
+        show_statistics()
+    
+    with tab4:
+        show_data_management()
+
+def show_account_management():
+    st.markdown("#### 계정 생성")
+    
+    with st.form("create_account"):
+        col1, col2 = st.columns(2)
+        with col1:
+            username = st.text_input("아이디")
+            password = st.text_input("비밀번호")
+            name = st.text_input("이름")
+        
+        with col2:
+            roles = ["동아리원", "회장", "부회장", "총무", "기록부장", "디자인담당", "선생님"]
+            role = st.selectbox("직급", roles)
+            clubs_df = st.session_state.data_manager.load_csv('clubs')
+            club_options = clubs_df['name'].tolist() if not clubs_df.empty else []
+            selected_clubs = st.multiselect("소속 동아리", club_options)
+        
+        if st.form_submit_button("계정 생성"):
+            if username and password and name:
+                success = st.session_state.data_manager.create_account(
+                    username, password, name, role
+                )
+                if success:
+                    for club in selec

@@ -1,0 +1,116 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime, date, timedelta
+
+class AssignmentSystem:
+    def __init__(self):
+        pass
+    
+    def show_assignment_interface(self, user):
+        st.markdown("### 📝 과제")
+        
+        if user['role'] in ['선생님', '회장', '부회장']:
+            tab1, tab2, tab3 = st.tabs(["📋 과제 목록", "➕ 과제 생성", "📊 제출 현황"])
+        else:
+            tab1, tab2 = st.tabs(["📋 과제 목록", "📤 내 제출물"])
+        
+        with tab1:
+            self.show_assignment_list(user)
+        
+        if user['role'] in ['선생님', '회장', '부회장']:
+            with tab2:
+                self.show_assignment_creation(user)
+            
+            with tab3:
+                self.show_submission_status(user)
+        else:
+            with tab2:
+                self.show_my_submissions(user)
+    
+    def show_assignment_list(self, user):
+        st.markdown("#### 📋 과제 목록")
+        
+        assignments_df = st.session_state.data_manager.load_csv('assignments')
+        
+        if assignments_df.empty:
+            st.info("등록된 과제가 없습니다.")
+            return
+        
+        # Filter assignments based on user's clubs
+        if user['role'] != '선생님':
+            user_clubs = st.session_state.data_manager.get_user_clubs(user['username'])
+            user_club_names = ["전체"] + user_clubs['club_name'].tolist()
+            assignments_df = assignments_df[
+                (assignments_df['club'].isin(user_club_names)) |
+                (assignments_df['creator'] == user['username'])
+            ]
+        
+        # Sort by due date
+        assignments_df['due_date'] = pd.to_datetime(assignments_df['due_date'])
+        assignments_df = assignments_df.sort_values('due_date')
+        
+        for _, assignment in assignments_df.iterrows():
+            self.show_assignment_card(assignment, user)
+    
+    def show_assignment_card(self, assignment, user):
+        # Calculate days until due
+        due_date = pd.to_datetime(assignment['due_date'])
+        days_left = (due_date.date() - date.today()).days
+        
+        # Status styling
+        if days_left < 0:
+            status_color = "#dc3545"
+            status_text = f"마감됨 ({abs(days_left)}일 전)"
+        elif days_left == 0:
+            status_color = "#fd7e14"
+            status_text = "오늘 마감"
+        elif days_left <= 3:
+            status_color = "#ffc107"
+            status_text = f"마감 {days_left}일 전"
+        else:
+            status_color = "#28a745"
+            status_text = f"마감 {days_left}일 전"
+        
+        with st.container():
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.markdown(f"""
+                <div class="club-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h4>{assignment['title']}</h4>
+                        <span style="background-color: {status_color}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px; white-space: nowrap;">
+                            {status_text}
+                        </span>
+                    </div>
+                    <p>{assignment['description'][:200]}{'...' if len(assignment['description']) > 200 else ''}</p>
+                    <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                        <p><strong>🏷️ 동아리:</strong> {assignment['club']}</p>
+                        <p><strong>📅 마감일:</strong> {assignment['due_date'].strftime('%Y-%m-%d')}</p>
+                        <p><strong>👤 출제자:</strong> {assignment['creator']}</p>
+                        <p><strong>📊 상태:</strong> {assignment['status']}</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                # Check if user has submitted
+                submissions_df = st.session_state.data_manager.load_csv('submissions')
+                user_submission = submissions_df[
+                    (submissions_df['assignment_id'] == assignment['id']) &
+                    (submissions_df['username'] == user['username'])
+                ]
+                
+                if not user_submission.empty:
+                    st.success("✅ 제출완료")
+                    if st.button("📝 수정", key=f"edit_submission_{assignment['id']}"):
+                        st.session_state[f'edit_submission_{assignment["id"]}'] = True
+                else:
+                    if days_left >= 0:  # Not overdue
+                        if st.button("📤 제출", key=f"submit_{assignment['id']}"):
+                            st.session_state[f'show_submission_{assignment["id"]}'] = True
+                    else:
+                        st.error("⏰ 마감됨")
+                
+                # Admin controls
+                if user['role'] in ['선생님', '회장'] or user['...

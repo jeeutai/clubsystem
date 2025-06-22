@@ -1,0 +1,33 @@
+streamlit.errors.StreamlitDuplicateElementKey: There are multiple elements with the same key='attendance_club_filter_unique'. To fix this, please make sure that the key argument is unique for each element you create.
+
+Traceback:
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 128, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 669, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/app.py", line 464, in <module>
+    main()
+File "/home/runner/workspace/app.py", line 218, in main
+    show_main_app()
+File "/home/runner/workspace/app.py", line 331, in show_main_app
+    st.session_state.attendance_system.show_attendance_interface(user)
+File "/home/runner/workspace/attendance_system.py", line 25, in show_attendance_interface
+    self.show_attendance_status(user)
+File "/home/runner/workspace/attendance_system.py", line 259, in show_attendance_status
+    selected_club = st.selectbox("동아리 필터", club_options, key="attendance_club_filter_unique")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/metrics_util.py", line 443, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/elements/widgets/selectbox.py", line 454, in selectbox
+    return self._selectbox(
+           ^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/elements/widgets/selectbox.py", line 526, in _selectbox
+    element_id = compute_and_register_element_id(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/elements/lib/utils.py", line 254, in compute_and_register_element_id
+    _register_element_id(ctx, element_type, element_id)
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/elements/lib/utils.py", line 143, in _register_element_id
+    raise StreamlitDuplicateElementKey(user_key)

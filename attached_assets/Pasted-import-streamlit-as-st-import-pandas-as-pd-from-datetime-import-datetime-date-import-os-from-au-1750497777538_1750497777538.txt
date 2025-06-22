@@ -1,0 +1,185 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime, date
+import os
+from auth import AuthManager
+from data_manager import DataManager
+from ui_components import UIComponents
+from report_generator import ReportGenerator
+from chat_system import ChatSystem
+from assignment_system import AssignmentSystem
+from quiz_system import QuizSystem
+from vote_system import VoteSystem
+from gallery_system import GallerySystem
+from attendance_system import AttendanceSystem
+from notification_system import NotificationSystem
+from search_system import SearchSystem
+
+# Configure page
+st.set_page_config(
+    page_title="폴라리스반 동아리 관리 시스템",
+    page_icon="🌟",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for mobile-first design
+st.markdown("""
+<style>
+    .main > div {
+        padding-top: 0.5rem;
+    }
+    
+    /* Modern Chrome-style tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+        background-color: #f8f9fa;
+        padding: 4px;
+        border-radius: 12px 12px 0 0;
+        margin-bottom: 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 48px;
+        white-space: nowrap;
+        background-color: transparent;
+        border-radius: 8px 8px 0 0;
+        color: #6c757d;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        min-width: 80px;
+        transition: all 0.2s ease;
+        border: none;
+        position: relative;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #e9ecef;
+        color: #495057;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: white;
+        color: #FF6B6B;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        border-bottom: 3px solid #FF6B6B;
+    }
+    
+    .stTabs [data-baseweb="tab-panel"] {
+        background-color: white;
+        border-radius: 0 0 12px 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-top: 0;
+    }
+    
+    .big-button {
+        background: linear-gradient(135deg, #FF6B6B, #4ECDC4);
+        color: white;
+        border: none;
+        padding: 15px 25px;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 12px;
+        width: 100%;
+        margin: 8px 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    }
+    
+    .big-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+    }
+    
+    .club-card {
+        background: white;
+        padding: 24px;
+        border-radius: 16px;
+        margin: 12px 0;
+        border-left: 6px solid #FF6B6B;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .club-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    
+    .role-badge {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+    
+    .notification {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 12px 0;
+        box-shadow: 0 2px 8px rgba(255, 227, 173, 0.3);
+    }
+    
+    .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 16px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    .chat-message-own {
+        background: linear-gradient(135deg, #FF6B6B, #ff8a80);
+        color: white;
+        border-radius: 18px 18px 4px 18px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        max-width: 70%;
+        margin-left: auto;
+        box-shadow: 0 3px 12px rgba(255, 107, 107, 0.3);
+    }
+    
+    .chat-message-other {
+        background: #f8f9fa;
+        color: #333;
+        border-radius: 18px 18px 18px 4px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        max-width: 70%;
+        margin-right: auto;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    }
+    
+    /* Hide sidebar completely */
+    .css-1d391kg, [data-testid="stSidebar"] {
+        display: none !important;
+    }
+    
+    .css-18e3th9 {
+        padding-top: 0;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .stTabs [data-baseweb="tab"] {
+            font-size: 11px;
+            padding: 0 8px;
+          ...
